@@ -1,24 +1,26 @@
 import { createSchema, createYoga } from 'graphql-yoga'
- 
+import { schema } from './schema'
+import { useDeferStream } from '@graphql-yoga/plugin-defer-stream'
+
+// vercel edge runtime
+export const config = {
+    runtime: 'edge',
+}
+
 const { handleRequest } = createYoga({
-  schema: createSchema({
-    typeDefs: /* GraphQL */ `
-      type Query {
-        greetings: String
-      }
-    `,
-    resolvers: {
-      Query: {
-        greetings: () => 'This is the `greetings` field of the root `Query` type'
-      }
-    }
-  }),
- 
-  // While using Next.js file convention for routing, we need to configure Yoga to use the correct endpoint
-  graphqlEndpoint: '/api/graphql',
- 
-  // Yoga needs to know how to create a valid Next response
-  fetchAPI: { Response }
+    schema,
+    context: {
+        // 在这里设置全局上下文信息
+    },
+    plugins: [useDeferStream()],
+    // While using Next.js file convention for routing, we need to configure Yoga to use the correct endpoint
+    graphqlEndpoint: '/api/graphql',
+    
+    // Yoga needs to know how to create a valid Next response
+    fetchAPI: { Response }
 })
+
+
+
  
 export { handleRequest as GET, handleRequest as POST, handleRequest as OPTIONS }
