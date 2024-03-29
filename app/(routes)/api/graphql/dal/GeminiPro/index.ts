@@ -1,16 +1,14 @@
 // import 'dotenv/config'
 import DataLoader from 'dataloader'
-import { ICommonDalArgs, Roles } from '../../types'
+import { IGeminiProDalArgs, Roles } from '../../types'
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai'
 import _ from 'lodash'
+import { mergeMessages } from '../../utils/tools'
+import { generationConfig } from '../../utils/constants'
 
-const DEFAULT_MODEL_NAME = 'gemini-1.0-pro'
-const generationConfig = {
-    temperature: 0.9,
-    topK: 1,
-    topP: 1,
-    maxOutputTokens: 2048,
-}
+const DEFAULT_API_VERSION = 'v1'
+const DEFAULT_MODEL_NAME = 'gemini-1.0-pro-latest'
+
 const safetySettings = [
     {
         category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -30,8 +28,9 @@ const safetySettings = [
     },
 ]
 
-const convertMessages = (messages: ICommonDalArgs['messages']) => {
-    let history = _.map(messages, message => {
+const convertMessages = (messages: IGeminiProDalArgs['messages']) => {
+    const mergedMessages = mergeMessages(messages)
+    let history = _.map(mergedMessages, message => {
         return {
             role:
                 message.role == Roles.assistant
@@ -44,7 +43,7 @@ const convertMessages = (messages: ICommonDalArgs['messages']) => {
     })
 
     history.splice(-1)
-    let message = messages?.at(-1)?.content
+    let message = mergedMessages?.at(-1)?.content
     return {
         history: history,
         message,
@@ -52,18 +51,33 @@ const convertMessages = (messages: ICommonDalArgs['messages']) => {
 }
 
 const fetchGeminiPro = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
-    const { messages, apiKey, model: modelName, isStream, completeHandler, streamHanler } = params || {}
+    const {
+        messages,
+        apiKey,
+        model: modelName,
+        isStream,
+        maxOutputTokens,
+        completeHandler,
+        streamHandler,
+        apiVersion,
+    } = params || {}
     const API_KEY = apiKey || process?.env?.GEMINI_PRO_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
+    const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
     if (_.isEmpty(messages) || !API_KEY) {
         return 'there is no messages or api key of Claude of GeminiPro'
     }
 
     const { message, history } = convertMessages(messages)
     const genAI = new GoogleGenerativeAI(API_KEY)
-    const model = genAI.getGenerativeModel({ model: modelUse })
+    const model = genAI.getGenerativeModel(
+        { model: modelUse },
+        {
+            apiVersion: apiVersion || DEFAULT_API_VERSION,
+        }
+    )
     const chat = model.startChat({
-        generationConfig,
+        generationConfig: { ...generationConfig, maxOutputTokens: max_tokens },
         safetySettings,
         history: history,
     })
@@ -78,7 +92,7 @@ const fetchGeminiPro = async (ctx: TBaseContext, params: Record<string, any>, op
         for await (const chunk of streamResult.stream) {
             const chunkText = chunk.text()
             if (chunkText) {
-                streamHanler({
+                streamHandler({
                     token: chunkText,
                     status: true,
                 })
@@ -101,7 +115,7 @@ const fetchGeminiPro = async (ctx: TBaseContext, params: Record<string, any>, op
     }
 }
 
-const loaderGeminiPro = async (ctx: TBaseContext, args: ICommonDalArgs, key: string) => {
+const loaderGeminiPro = async (ctx: TBaseContext, args: IGeminiProDalArgs, key: string) => {
     ctx.loaderGeminiProArgs = {
         ...ctx.loaderGeminiProArgs,
         [key]: args,

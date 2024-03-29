@@ -1,16 +1,16 @@
 // import 'dotenv/config'
-import ClaudeDal from '../../dal/Claude'
+import LingyiwanwuDal from '../../dal/Lingyiwanwu'
 import _ from 'lodash'
 import { Repeater } from 'graphql-yoga'
 
 const typeDefinitions = `
     scalar JSON
     type Chat {
-        Claude(params: ClaudeArgs): ChatResult
-        ClaudeStream(params: ClaudeArgs): [String]
+        Lingyiwanwu(params: LingyiwanwuArgs): ChatResult
+        LingyiwanwuStream(params: LingyiwanwuArgs): [String]
     }
 
-    input ClaudeArgs {
+    input LingyiwanwuArgs {
         messages: Message
         "API_KEY"
         apiKey: String
@@ -23,11 +23,11 @@ const typeDefinitions = `
 
 const resolvers = {
     Chat: {
-        Claude: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+        Lingyiwanwu: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
             const chatArgs = parent?.chatArgs || {}
             const baseMessages = chatArgs.messages || []
-            const claudeArgs = args?.params || {}
-            const { messages: appendMessages, apiKey, model, maxTokens } = claudeArgs || {}
+            const lingyiwanwuArgs = args?.params || {}
+            const { messages: appendMessages, apiKey, model, maxTokens } = lingyiwanwuArgs || {}
             const maxTokensUse = maxTokens || chatArgs?.maxTokens
             const messages = _.concat([], baseMessages || [], appendMessages || []) || []
             const key = messages.at(-1)?.content
@@ -36,21 +36,21 @@ const resolvers = {
                 return { text: '' }
             }
             const text: any = await (
-                await ClaudeDal.loader(context, { messages, apiKey, model, maxOutputTokens: maxTokensUse }, key)
+                await LingyiwanwuDal.loader(context, { messages, apiKey, model, maxOutputTokens: maxTokensUse }, key)
             ).load(key)
             return { text }
         },
-        ClaudeStream: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+        LingyiwanwuStream: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
             const xvalue = new Repeater<String>(async (push, stop) => {
                 const chatArgs = parent?.chatArgs || {}
                 const baseMessages = chatArgs.messages || []
-                const claudeArgs = args?.params || {}
-                const { messages: appendMessages, apiKey, model } = claudeArgs || {}
+                const lingyiwanwuArgs = args?.params || {}
+                const { messages: appendMessages, apiKey, model } = lingyiwanwuArgs || {}
                 const messages = _.concat([], baseMessages || [], appendMessages || []) || []
                 const key = `${messages.at(-1)?.content || ''}_stream`
 
                 await (
-                    await ClaudeDal.loader(
+                    await LingyiwanwuDal.loader(
                         context,
                         {
                             messages,

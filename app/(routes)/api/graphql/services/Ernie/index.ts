@@ -1,19 +1,21 @@
 // import 'dotenv/config'
-import ClaudeDal from '../../dal/Claude'
+import ErnieDal from '../../dal/Ernie'
 import _ from 'lodash'
 import { Repeater } from 'graphql-yoga'
 
 const typeDefinitions = `
     scalar JSON
     type Chat {
-        Claude(params: ClaudeArgs): ChatResult
-        ClaudeStream(params: ClaudeArgs): [String]
+        Ernie(params: ErnieArgs): ChatResult
+        ErnieStream(params: ErnieArgs): [String]
     }
 
-    input ClaudeArgs {
+    input ErnieArgs {
         messages: Message
         "API_KEY"
         apiKey: String
+        "Secret_Key"
+        secretKey: String
         "Model Name"
         model: String
         "Max Tokens"
@@ -23,11 +25,11 @@ const typeDefinitions = `
 
 const resolvers = {
     Chat: {
-        Claude: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+        Ernie: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
             const chatArgs = parent?.chatArgs || {}
             const baseMessages = chatArgs.messages || []
-            const claudeArgs = args?.params || {}
-            const { messages: appendMessages, apiKey, model, maxTokens } = claudeArgs || {}
+            const ernieArgs = args?.params || {}
+            const { messages: appendMessages, apiKey, secretKey, model, maxTokens } = ernieArgs || {}
             const maxTokensUse = maxTokens || chatArgs?.maxTokens
             const messages = _.concat([], baseMessages || [], appendMessages || []) || []
             const key = messages.at(-1)?.content
@@ -36,31 +38,37 @@ const resolvers = {
                 return { text: '' }
             }
             const text: any = await (
-                await ClaudeDal.loader(context, { messages, apiKey, model, maxOutputTokens: maxTokensUse }, key)
+                await ErnieDal.loader(
+                    context,
+                    { messages, apiKey, secretKey, model, maxOutputTokens: maxTokensUse },
+                    key
+                )
             ).load(key)
             return { text }
         },
-        ClaudeStream: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+        ErnieStream: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
             const xvalue = new Repeater<String>(async (push, stop) => {
                 const chatArgs = parent?.chatArgs || {}
                 const baseMessages = chatArgs.messages || []
-                const claudeArgs = args?.params || {}
-                const { messages: appendMessages, apiKey, model } = claudeArgs || {}
+                const ernieArgs = args?.params || {}
+                const { messages: appendMessages, apiKey, secretKey, model } = ernieArgs || {}
                 const messages = _.concat([], baseMessages || [], appendMessages || []) || []
                 const key = `${messages.at(-1)?.content || ''}_stream`
 
                 await (
-                    await ClaudeDal.loader(
+                    await ErnieDal.loader(
                         context,
                         {
                             messages,
                             apiKey,
+                            secretKey,
                             model,
                             isStream: true,
                             completeHandler: ({ content, status }) => {
                                 stop()
                             },
                             streamHandler: ({ token, status }) => {
+                                console.log(`streamHandle`, token)
                                 if (token && status) {
                                     push(token)
                                 }

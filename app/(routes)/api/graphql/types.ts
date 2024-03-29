@@ -5,7 +5,7 @@ export enum Roles {
     model = 'model', // GeminiPro
 }
 
-interface IMessage {
+export interface IMessage {
     role: Roles
     content: string
 }
@@ -15,6 +15,14 @@ export interface ICommonDalArgs {
     model?: string
     apiKey?: string
     isStream?: boolean
+    maxOutputTokens?: number
     completeHandler?: (params: { content: string; status: boolean }) => void
-    streamHanler?: (params: { token: string; status: boolean }) => void
+    streamHandler?: (params: { token: string; status: boolean }) => void
+}
+
+export interface IGeminiProDalArgs extends ICommonDalArgs {
+    apiVersion?: string
+}
+export interface IErnieDalArgs extends ICommonDalArgs {
+    secretKey?: string
 }

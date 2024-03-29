@@ -5,8 +5,8 @@ import OpenAI from 'openai'
 import _ from 'lodash'
 import { generationConfig } from '../../utils/constants'
 
-const DEFAULT_MODEL_NAME = 'moonshot-v1-8k'
-const baseUrl = 'https://api.moonshot.cn/v1'
+const DEFAULT_MODEL_NAME = 'yi-34b-chat-0205'
+const baseUrl = 'https://api.lingyiwanwu.com/v1'
 
 const convertMessages = (messages: ICommonDalArgs['messages']) => {
     let history = _.map(messages, message => {
@@ -20,7 +20,7 @@ const convertMessages = (messages: ICommonDalArgs['messages']) => {
     }
 }
 
-const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
+const fetchLingyiwanwu = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
     const {
         messages,
         apiKey,
@@ -30,23 +30,23 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
         completeHandler,
         streamHandler,
     } = params || {}
-    const API_KEY = apiKey || process?.env?.MOONSHOT_API_KEY || ''
+    const API_KEY = apiKey || process?.env?.LINGYIWANWU_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
     if (_.isEmpty(messages) || !API_KEY) {
-        return 'there is no messages or api key of Moonshot'
+        return 'there is no messages or api key of Lingyiwanwu'
     }
     const { history } = convertMessages(messages)
-    const openai = new OpenAI({
-        baseURL: baseUrl,
+    const lingyiwanwu = new OpenAI({
         apiKey: API_KEY,
+        baseURL: baseUrl,
     })
 
     console.log(`isStream`, isStream)
 
     if (isStream) {
         try {
-            const completion = await openai.chat.completions.create({
+            const completion = await lingyiwanwu.chat.completions.create({
                 model: modelUse,
                 max_tokens,
                 temperature: 0,
@@ -58,7 +58,7 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
             let content = ``
             for await (const chunk of completion) {
                 const text = chunk.choices[0].delta.content
-                console.log(`Moonshot text`, text)
+                console.log(`Lingyiwanwu text`, text)
                 if (text) {
                     streamHandler({
                         token: text,
@@ -72,7 +72,7 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
                 status: true,
             })
         } catch (e) {
-            console.log(`Moonshot error`, e)
+            console.log(`Lingyiwanwu error`, e)
 
             completeHandler({
                 content: '',
@@ -82,7 +82,7 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
     } else {
         let msg = ''
         try {
-            const result = await openai.chat.completions.create({
+            const result = await lingyiwanwu.chat.completions.create({
                 model: modelUse,
                 max_tokens,
                 temperature: 0,
@@ -91,40 +91,40 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
             })
             msg = result?.choices?.[0]?.message?.content || ''
         } catch (e) {
-            console.log(`moonshot error`, e)
+            console.log(`lingyiwanwu error`, e)
             msg = String(e)
         }
 
-        console.log(`Moonshot result`, msg)
+        console.log(`Lingyiwanwu result`, msg)
         return msg
     }
 }
 
-const loaderMoonshot = async (ctx: TBaseContext, args: ICommonDalArgs, key: string) => {
-    ctx.loaderMoonshotArgs = {
-        ...ctx.loaderMoonshotArgs,
+const loaderLingyiwanwu = async (ctx: TBaseContext, args: ICommonDalArgs, key: string) => {
+    ctx.loaderLingyiwanwuArgs = {
+        ...ctx.loaderLingyiwanwuArgs,
         [key]: args,
     }
 
-    if (!ctx?.loaderMoonshot) {
-        ctx.loaderMoonshot = new DataLoader<string, string>(async keys => {
-            console.log(`loaderMoonshot-keys-🐹🐹🐹`, keys)
+    if (!ctx?.loaderLingyiwanwu) {
+        ctx.loaderLingyiwanwu = new DataLoader<string, string>(async keys => {
+            console.log(`loaderLingyiwanwu-keys-🐹🐹🐹`, keys)
             try {
-                const moonshotAnswerList = await Promise.all(
+                const lingyiwanwuAnswerList = await Promise.all(
                     keys.map(key =>
-                        fetchMoonshot(ctx, {
-                            ...ctx.loaderMoonshotArgs[key],
+                        fetchLingyiwanwu(ctx, {
+                            ...ctx.loaderLingyiwanwuArgs[key],
                         })
                     )
                 )
-                return moonshotAnswerList
+                return lingyiwanwuAnswerList
             } catch (e) {
-                console.log(`[loaderMoonshot] error: ${e}`)
+                console.log(`[loaderLingyiwanwu] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
         })
     }
-    return ctx.loaderMoonshot
+    return ctx.loaderLingyiwanwu
 }
 
-export default { fetch: fetchMoonshot, loader: loaderMoonshot }
+export default { fetch: fetchLingyiwanwu, loader: loaderLingyiwanwu }

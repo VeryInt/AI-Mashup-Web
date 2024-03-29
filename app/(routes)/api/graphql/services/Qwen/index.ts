@@ -1,16 +1,16 @@
 // import 'dotenv/config'
-import ClaudeDal from '../../dal/Claude'
+import QwenDal from '../../dal/Qwen'
 import _ from 'lodash'
 import { Repeater } from 'graphql-yoga'
 
 const typeDefinitions = `
     scalar JSON
     type Chat {
-        Claude(params: ClaudeArgs): ChatResult
-        ClaudeStream(params: ClaudeArgs): [String]
+        Qwen(params: QwenArgs): ChatResult
+        QwenStream(params: QwenArgs): [String]
     }
 
-    input ClaudeArgs {
+    input QwenArgs {
         messages: Message
         "API_KEY"
         apiKey: String
@@ -23,11 +23,11 @@ const typeDefinitions = `
 
 const resolvers = {
     Chat: {
-        Claude: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+        Qwen: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
             const chatArgs = parent?.chatArgs || {}
             const baseMessages = chatArgs.messages || []
-            const claudeArgs = args?.params || {}
-            const { messages: appendMessages, apiKey, model, maxTokens } = claudeArgs || {}
+            const qwenArgs = args?.params || {}
+            const { messages: appendMessages, apiKey, model, maxTokens } = qwenArgs || {}
             const maxTokensUse = maxTokens || chatArgs?.maxTokens
             const messages = _.concat([], baseMessages || [], appendMessages || []) || []
             const key = messages.at(-1)?.content
@@ -36,21 +36,21 @@ const resolvers = {
                 return { text: '' }
             }
             const text: any = await (
-                await ClaudeDal.loader(context, { messages, apiKey, model, maxOutputTokens: maxTokensUse }, key)
+                await QwenDal.loader(context, { messages, apiKey, model, maxOutputTokens: maxTokensUse }, key)
             ).load(key)
             return { text }
         },
-        ClaudeStream: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+        QwenStream: async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
             const xvalue = new Repeater<String>(async (push, stop) => {
                 const chatArgs = parent?.chatArgs || {}
                 const baseMessages = chatArgs.messages || []
-                const claudeArgs = args?.params || {}
-                const { messages: appendMessages, apiKey, model } = claudeArgs || {}
+                const qwenArgs = args?.params || {}
+                const { messages: appendMessages, apiKey, model } = qwenArgs || {}
                 const messages = _.concat([], baseMessages || [], appendMessages || []) || []
                 const key = `${messages.at(-1)?.content || ''}_stream`
 
                 await (
-                    await ClaudeDal.loader(
+                    await QwenDal.loader(
                         context,
                         {
                             messages,

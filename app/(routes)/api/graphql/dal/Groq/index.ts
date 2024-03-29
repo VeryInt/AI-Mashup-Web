@@ -1,12 +1,10 @@
-// import 'dotenv/config'
+import Groq from 'groq-sdk'
 import DataLoader from 'dataloader'
 import { ICommonDalArgs, Roles } from '../../types'
-import OpenAI from 'openai'
 import _ from 'lodash'
 import { generationConfig } from '../../utils/constants'
 
-const DEFAULT_MODEL_NAME = 'moonshot-v1-8k'
-const baseUrl = 'https://api.moonshot.cn/v1'
+const DEFAULT_MODEL_NAME = 'mixtral-8x7b-32768'
 
 const convertMessages = (messages: ICommonDalArgs['messages']) => {
     let history = _.map(messages, message => {
@@ -20,7 +18,7 @@ const convertMessages = (messages: ICommonDalArgs['messages']) => {
     }
 }
 
-const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
+const fetchGroq = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
     const {
         messages,
         apiKey,
@@ -30,15 +28,14 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
         completeHandler,
         streamHandler,
     } = params || {}
-    const API_KEY = apiKey || process?.env?.MOONSHOT_API_KEY || ''
+    const API_KEY = apiKey || process?.env?.GROQ_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
     if (_.isEmpty(messages) || !API_KEY) {
-        return 'there is no messages or api key of Moonshot'
+        return 'there is no messages or api key of Groq'
     }
     const { history } = convertMessages(messages)
-    const openai = new OpenAI({
-        baseURL: baseUrl,
+    const groq = new Groq({
         apiKey: API_KEY,
     })
 
@@ -46,7 +43,7 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
 
     if (isStream) {
         try {
-            const completion = await openai.chat.completions.create({
+            const completion = await groq.chat.completions.create({
                 model: modelUse,
                 max_tokens,
                 temperature: 0,
@@ -58,7 +55,7 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
             let content = ``
             for await (const chunk of completion) {
                 const text = chunk.choices[0].delta.content
-                console.log(`Moonshot text`, text)
+                console.log(`Groq text`, text)
                 if (text) {
                     streamHandler({
                         token: text,
@@ -72,7 +69,7 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
                 status: true,
             })
         } catch (e) {
-            console.log(`Moonshot error`, e)
+            console.log(`Groq error`, e)
 
             completeHandler({
                 content: '',
@@ -82,7 +79,7 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
     } else {
         let msg = ''
         try {
-            const result = await openai.chat.completions.create({
+            const result = await groq.chat.completions.create({
                 model: modelUse,
                 max_tokens,
                 temperature: 0,
@@ -91,40 +88,40 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
             })
             msg = result?.choices?.[0]?.message?.content || ''
         } catch (e) {
-            console.log(`moonshot error`, e)
+            console.log(`groq error`, e)
             msg = String(e)
         }
 
-        console.log(`Moonshot result`, msg)
+        console.log(`Groq result`, msg)
         return msg
     }
 }
 
-const loaderMoonshot = async (ctx: TBaseContext, args: ICommonDalArgs, key: string) => {
-    ctx.loaderMoonshotArgs = {
-        ...ctx.loaderMoonshotArgs,
+const loaderGroq = async (ctx: TBaseContext, args: ICommonDalArgs, key: string) => {
+    ctx.loaderGroqArgs = {
+        ...ctx.loaderGroqArgs,
         [key]: args,
     }
 
-    if (!ctx?.loaderMoonshot) {
-        ctx.loaderMoonshot = new DataLoader<string, string>(async keys => {
-            console.log(`loaderMoonshot-keys-🐹🐹🐹`, keys)
+    if (!ctx?.loaderGroq) {
+        ctx.loaderGroq = new DataLoader<string, string>(async keys => {
+            console.log(`loaderGroq-keys-🐹🐹🐹`, keys)
             try {
-                const moonshotAnswerList = await Promise.all(
+                const groqAnswerList = await Promise.all(
                     keys.map(key =>
-                        fetchMoonshot(ctx, {
-                            ...ctx.loaderMoonshotArgs[key],
+                        fetchGroq(ctx, {
+                            ...ctx.loaderGroqArgs[key],
                         })
                     )
                 )
-                return moonshotAnswerList
+                return groqAnswerList
             } catch (e) {
-                console.log(`[loaderMoonshot] error: ${e}`)
+                console.log(`[loaderGroq] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
         })
     }
-    return ctx.loaderMoonshot
+    return ctx.loaderGroq
 }
 
-export default { fetch: fetchMoonshot, loader: loaderMoonshot }
+export default { fetch: fetchGroq, loader: loaderGroq }
