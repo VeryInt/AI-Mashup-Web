@@ -1,29 +1,31 @@
 // import 'dotenv/config'
-import ClaudeDal from '../../dal/Claude'
+import AzureOpenaiDal from '../../dal/AzureOpenai'
 import _ from 'lodash'
 import { Repeater } from 'graphql-yoga'
 
 const typeDefinitions = `
     scalar JSON
     type Chat {
-        Claude(params: ClaudeArgs): ChatResult
-        ClaudeStream(params: ClaudeArgs): [String]
+        AzureOpenai(params: AzureOpenaiArgs): ChatResult
+        AzureOpenaiStream(params: AzureOpenaiArgs): [String]
     }
 
-    input ClaudeArgs {
+    input AzureOpenaiArgs {
         messages: Message
         "API_KEY"
         apiKey: String
+        "ENDPOINT"
+        endpoint: String
         "Model Name"
         model: String
         "Max Tokens"
         maxTokens: Int
     }
 `
-export const Claude = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+export const AzureOpenai = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
     const { messages: baseMessages, maxTokens: baseMaxTokens } = parent || {}
-    const claudeArgs = args?.params || {}
-    const { messages: appendMessages, apiKey, model, maxTokens } = claudeArgs || {}
+    const azureOpenaiArgs = args?.params || {}
+    const { messages: appendMessages, apiKey, model, maxTokens, endpoint } = azureOpenaiArgs || {}
     const maxTokensUse = maxTokens || baseMaxTokens
     const messages = _.concat([], baseMessages || [], appendMessages || []) || []
     const key = messages.at(-1)?.content
@@ -32,28 +34,29 @@ export const Claude = async (parent: TParent, args: Record<string, any>, context
         return { text: '' }
     }
     const text: any = await (
-        await ClaudeDal.loader(context, { messages, apiKey, model, maxOutputTokens: maxTokensUse }, key)
+        await AzureOpenaiDal.loader(context, { messages, apiKey, model, maxOutputTokens: maxTokensUse, endpoint }, key)
     ).load(key)
     return { text }
 }
 
-export const ClaudeStream = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+export const AzureOpenaiStream = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
     const xvalue = new Repeater<String>(async (push, stop) => {
         const { messages: baseMessages, maxTokens: baseMaxTokens } = parent || {}
-        const claudeArgs = args?.params || {}
-        const { messages: appendMessages, apiKey, model, maxTokens } = claudeArgs || {}
+        const azureOpenaiArgs = args?.params || {}
+        const { messages: appendMessages, apiKey, model, maxTokens, endpoint } = azureOpenaiArgs || {}
         const maxTokensUse = maxTokens || baseMaxTokens
         const messages = _.concat([], baseMessages || [], appendMessages || []) || []
         const key = `${messages.at(-1)?.content || ''}_stream`
 
         await (
-            await ClaudeDal.loader(
+            await AzureOpenaiDal.loader(
                 context,
                 {
                     messages,
                     apiKey,
                     model,
                     maxOutputTokens: maxTokensUse,
+                    endpoint,
                     isStream: true,
                     completeHandler: ({ content, status }) => {
                         stop()
@@ -73,8 +76,8 @@ export const ClaudeStream = async (parent: TParent, args: Record<string, any>, c
 
 const resolvers = {
     Chat: {
-        Claude,
-        ClaudeStream,
+        AzureOpenai,
+        AzureOpenaiStream,
     },
 }
 

@@ -8,8 +8,24 @@ import Groq from './Groq'
 import Lingyiwanwu from './Lingyiwanwu'
 import Ernie from './Ernie'
 import Qwen from './Qwen'
+import Zhipu from './Zhipu'
+import Chain from './Chain'
+import AzureOpenai from './AzureOpenai'
 
-const serviceList = [ChatCommon, Openai, GeminiPro, Claude, Moonshot, Groq, Lingyiwanwu, Ernie, Qwen]
+const serviceList = [
+    Chain,
+    ChatCommon,
+    AzureOpenai,
+    Openai,
+    GeminiPro,
+    Claude,
+    Moonshot,
+    Groq,
+    Lingyiwanwu,
+    Ernie,
+    Qwen,
+    Zhipu,
+]
 
 export default {
     typeDefinitions: serviceList.map(service => service.typeDefinitions),

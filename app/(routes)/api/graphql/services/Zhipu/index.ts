@@ -1,16 +1,16 @@
 // import 'dotenv/config'
-import ClaudeDal from '../../dal/Claude'
+import ZhipuDal from '../../dal/Zhipu'
 import _ from 'lodash'
 import { Repeater } from 'graphql-yoga'
 
 const typeDefinitions = `
     scalar JSON
     type Chat {
-        Claude(params: ClaudeArgs): ChatResult
-        ClaudeStream(params: ClaudeArgs): [String]
+        Zhipu(params: ZhipuArgs): ChatResult
+        ZhipuStream(params: ZhipuArgs): [String]
     }
 
-    input ClaudeArgs {
+    input ZhipuArgs {
         messages: Message
         "API_KEY"
         apiKey: String
@@ -20,10 +20,10 @@ const typeDefinitions = `
         maxTokens: Int
     }
 `
-export const Claude = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+export const Zhipu = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
     const { messages: baseMessages, maxTokens: baseMaxTokens } = parent || {}
-    const claudeArgs = args?.params || {}
-    const { messages: appendMessages, apiKey, model, maxTokens } = claudeArgs || {}
+    const zhipuArgs = args?.params || {}
+    const { messages: appendMessages, apiKey, model, maxTokens } = zhipuArgs || {}
     const maxTokensUse = maxTokens || baseMaxTokens
     const messages = _.concat([], baseMessages || [], appendMessages || []) || []
     const key = messages.at(-1)?.content
@@ -32,22 +32,22 @@ export const Claude = async (parent: TParent, args: Record<string, any>, context
         return { text: '' }
     }
     const text: any = await (
-        await ClaudeDal.loader(context, { messages, apiKey, model, maxOutputTokens: maxTokensUse }, key)
+        await ZhipuDal.loader(context, { messages, apiKey, model, maxOutputTokens: maxTokensUse }, key)
     ).load(key)
     return { text }
 }
 
-export const ClaudeStream = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+export const ZhipuStream = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
     const xvalue = new Repeater<String>(async (push, stop) => {
         const { messages: baseMessages, maxTokens: baseMaxTokens } = parent || {}
-        const claudeArgs = args?.params || {}
-        const { messages: appendMessages, apiKey, model, maxTokens } = claudeArgs || {}
+        const zhipuArgs = args?.params || {}
+        const { messages: appendMessages, apiKey, model, maxTokens } = zhipuArgs || {}
         const maxTokensUse = maxTokens || baseMaxTokens
         const messages = _.concat([], baseMessages || [], appendMessages || []) || []
         const key = `${messages.at(-1)?.content || ''}_stream`
 
         await (
-            await ClaudeDal.loader(
+            await ZhipuDal.loader(
                 context,
                 {
                     messages,
@@ -73,8 +73,8 @@ export const ClaudeStream = async (parent: TParent, args: Record<string, any>, c
 
 const resolvers = {
     Chat: {
-        Claude,
-        ClaudeStream,
+        Zhipu,
+        ZhipuStream,
     },
 }
 

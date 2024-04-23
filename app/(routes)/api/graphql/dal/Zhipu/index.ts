@@ -4,10 +4,11 @@ import { ICommonDalArgs, Roles } from '../../types'
 import _ from 'lodash'
 import { generationConfig } from '../../utils/constants'
 import { fetchEventStream } from '../../utils/tools'
+import { SignJWT } from 'jose'
 
 const defaultErrorInfo = `currently the mode is not supported`
-const DEFAULT_MODEL_NAME = 'qwen-turbo'
-const requestUrl = `https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation`
+const DEFAULT_MODEL_NAME = 'glm-3-turbo'
+const requestUrl = `https://open.bigmodel.cn/api/paas/v4/chat/completions`
 
 const convertMessages = (messages: ICommonDalArgs['messages']) => {
     let history = _.map(messages, message => {
@@ -21,7 +22,24 @@ const convertMessages = (messages: ICommonDalArgs['messages']) => {
     }
 }
 
-const fetchQwen = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
+const getAuthToken = async ({ apiKey }: { apiKey: string }): Promise<string> => {
+    const [key, secret] = apiKey.split('.')
+    const now = Date.now()
+    let authToken = ''
+    const payload = { api_key: key, exp: now + 10000, timestamp: now }
+    try {
+        authToken = await new SignJWT(payload)
+            .setProtectedHeader({ alg: 'HS256', sign_type: 'SIGN' })
+            .setExpirationTime('3s')
+            .sign(new TextEncoder().encode(secret))
+    } catch (e) {
+        console.log(`get authToken error`, e)
+    }
+
+    return authToken
+}
+
+const fetchZhipu = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
     const {
         messages,
         apiKey,
@@ -32,24 +50,29 @@ const fetchQwen = async (ctx: TBaseContext, params: Record<string, any>, options
         streamHandler,
     } = params || {}
     const env = (typeof process != 'undefined' && process?.env) || {}  as NodeJS.ProcessEnv
-    const API_KEY = apiKey || env?.QWEN_API_KEY || ''
+    const API_KEY = apiKey || env?.ZHIPU_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
 
-    if (_.isEmpty(messages) || !API_KEY) {
-        return 'there is no messages or api key of Qwen'
+    const authToken = await getAuthToken({ apiKey: API_KEY })
+
+    if (_.isEmpty(messages) || !API_KEY || !authToken) {
+        if (isStream) {
+            streamHandler({
+                token: 'there is no messages or api key of Zhipu',
+                status: true,
+            })
+        }
+        return 'there is no messages or api key of Zhipu'
     }
     const { history } = convertMessages(messages)
     console.log(`isStream`, isStream)
 
-    // https://help.aliyun.com/document_detail/2712576.html?spm=a2c4g.2712581.0.0.1e2e55a1x4dFmY
     const body = {
         model: modelUse,
-        input: { messages: history },
-        parameters: {
-            max_tokens,
-            result_format: 'message',
-        },
+        messages: history,
+        max_tokens,
+        stream: false,
     }
 
     const requestOptions = {
@@ -57,7 +80,7 @@ const fetchQwen = async (ctx: TBaseContext, params: Record<string, any>, options
         headers: {
             'Content-Type': 'application/json',
             Accept: '*/*',
-            Authorization: `Bearer ${API_KEY}`,
+            Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify(body),
     }
@@ -65,6 +88,8 @@ const fetchQwen = async (ctx: TBaseContext, params: Record<string, any>, options
     console.log(`requestOptions`, requestOptions)
     if (isStream) {
         requestOptions.headers.Accept = `text/event-stream`
+        body.stream = true
+        requestOptions.body = JSON.stringify(body)
         let totalContent = ``
         try {
             fetchEventStream({
@@ -79,13 +104,14 @@ const fetchQwen = async (ctx: TBaseContext, params: Record<string, any>, options
                     })
                 },
                 streamHandler: data => {
-                    const resultJson = JSON.parse(data)
-                    // qwen的sse是每次新消息返回的内容是全部拼接在一起的
-                    const newContent = resultJson?.output?.choices?.[0]?.message?.content || ``
-                    const token = newContent.replace(totalContent, '')
-                    totalContent = newContent
+                    let resultJson: Record<string, any> = {}
+                    try {
+                        resultJson = JSON.parse(data)
+                    } catch (e) {}
+                    const token = resultJson?.choices?.[0]?.delta?.content || ``
                     console.log(`token`, token)
                     if (token) {
+                        totalContent += token
                         streamHandler({
                             token,
                             status: true,
@@ -94,7 +120,7 @@ const fetchQwen = async (ctx: TBaseContext, params: Record<string, any>, options
                 },
             })
         } catch (e) {
-            console.log(`ernie error`, e)
+            console.log(`zhipu error`, e)
             streamHandler({
                 token: defaultErrorInfo,
                 status: true,
@@ -109,41 +135,41 @@ const fetchQwen = async (ctx: TBaseContext, params: Record<string, any>, options
         try {
             const response = await fetch(requestUrl, requestOptions)
             const result = await response.json()
-            console.log(`fetchQwen`, result)
-            msg = result?.output?.choices?.[0]?.message?.content || ``
+            console.log(`fetchZhipu`, result)
+            msg = result?.choices?.[0]?.message?.content || ``
         } catch (e) {
-            console.log(`qwen error`, e)
+            console.log(`zhipu error`, e)
             msg = String(e)
         }
         return msg
     }
 }
 
-const loaderQwen = async (ctx: TBaseContext, args: ICommonDalArgs, key: string) => {
-    ctx.loaderQwenArgs = {
-        ...ctx.loaderQwenArgs,
+const loaderZhipu = async (ctx: TBaseContext, args: ICommonDalArgs, key: string) => {
+    ctx.loaderZhipuArgs = {
+        ...ctx.loaderZhipuArgs,
         [key]: args,
     }
 
-    if (!ctx?.loaderQwen) {
-        ctx.loaderQwen = new DataLoader<string, string>(async keys => {
-            console.log(`loaderQwen-keys-🐹🐹🐹`, keys)
+    if (!ctx?.loaderZhipu) {
+        ctx.loaderZhipu = new DataLoader<string, string>(async keys => {
+            console.log(`loaderZhipu-keys-🐹🐹🐹`, keys)
             try {
-                const qwenAnswerList = await Promise.all(
+                const zhipuAnswerList = await Promise.all(
                     keys.map(key =>
-                        fetchQwen(ctx, {
-                            ...ctx.loaderQwenArgs[key],
+                        fetchZhipu(ctx, {
+                            ...ctx.loaderZhipuArgs[key],
                         })
                     )
                 )
-                return qwenAnswerList
+                return zhipuAnswerList
             } catch (e) {
-                console.log(`[loaderQwen] error: ${e}`)
+                console.log(`[loaderZhipu] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
         })
     }
-    return ctx.loaderQwen
+    return ctx.loaderZhipu
 }
 
-export default { fetch: fetchQwen, loader: loaderQwen }
+export default { fetch: fetchZhipu, loader: loaderZhipu }

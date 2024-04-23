@@ -1,12 +1,11 @@
 // import 'dotenv/config'
 import DataLoader from 'dataloader'
-import { ICommonDalArgs, Roles } from '../../types'
-import OpenAI from 'openai'
+import { ICommonDalArgs, Roles, IAzureOpenaiArgs } from '../../types'
+import { OpenAIClient, AzureKeyCredential } from '@azure/openai'
 import _ from 'lodash'
 import { generationConfig } from '../../utils/constants'
 
-const DEFAULT_MODEL_NAME = 'moonshot-v1-8k'
-const baseUrl = 'https://api.moonshot.cn/v1'
+const DEFAULT_MODEL_NAME = 'gpt-35-turbo' // deploymentId
 
 const convertMessages = (messages: ICommonDalArgs['messages']) => {
     let history = _.map(messages, message => {
@@ -20,10 +19,11 @@ const convertMessages = (messages: ICommonDalArgs['messages']) => {
     }
 }
 
-const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
+const fetchAzureOpenai = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
     const {
         messages,
         apiKey,
+        endpoint,
         model: modelName,
         isStream,
         maxOutputTokens,
@@ -31,35 +31,29 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
         streamHandler,
     } = params || {}
     const env = (typeof process != 'undefined' && process?.env) || {}  as NodeJS.ProcessEnv
-    const API_KEY = apiKey || env?.MOONSHOT_API_KEY || ''
+    const ENDPOINT = endpoint || env?.AZURE_OPENAI_ENDPOINT || ''
+    const API_KEY = apiKey || env?.AZURE_OPENAI_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
     if (_.isEmpty(messages) || !API_KEY) {
-        return 'there is no messages or api key of Moonshot'
+        return 'there is no messages or api key of Openai'
     }
     const { history } = convertMessages(messages)
-    const openai = new OpenAI({
-        baseURL: baseUrl,
-        apiKey: API_KEY,
-    })
+
+    const client = new OpenAIClient(ENDPOINT, new AzureKeyCredential(API_KEY))
 
     console.log(`isStream`, isStream)
 
     if (isStream) {
         try {
-            const completion = await openai.chat.completions.create({
-                model: modelUse,
-                max_tokens,
-                temperature: 0,
-                // @ts-ignore
-                messages: history,
-                stream: true,
+            const completion = await client.streamChatCompletions(modelUse, history, {
+                maxTokens: max_tokens,
             })
 
             let content = ``
             for await (const chunk of completion) {
-                const text = chunk.choices[0].delta.content
-                console.log(`Moonshot text`, text)
+                const text = chunk.choices?.[0]?.delta?.content || ``
+                console.log(`Azure Openai text`, text)
                 if (text) {
                     streamHandler({
                         token: text,
@@ -73,7 +67,7 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
                 status: true,
             })
         } catch (e) {
-            console.log(`Moonshot error`, e)
+            console.log(`Azure Openai error`, e)
 
             completeHandler({
                 content: '',
@@ -83,49 +77,45 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
     } else {
         let msg = ''
         try {
-            const result = await openai.chat.completions.create({
-                model: modelUse,
-                max_tokens,
-                temperature: 0,
-                // @ts-ignore
-                messages: history,
+            const result = await client.getChatCompletions(modelUse, history, {
+                maxTokens: max_tokens,
             })
             msg = result?.choices?.[0]?.message?.content || ''
         } catch (e) {
-            console.log(`moonshot error`, e)
+            console.log(`azure openai error`, e)
             msg = String(e)
         }
 
-        console.log(`Moonshot result`, msg)
+        console.log(`Azure Openai result`, msg)
         return msg
     }
 }
 
-const loaderMoonshot = async (ctx: TBaseContext, args: ICommonDalArgs, key: string) => {
-    ctx.loaderMoonshotArgs = {
-        ...ctx.loaderMoonshotArgs,
+const loaderAzureOpenai = async (ctx: TBaseContext, args: IAzureOpenaiArgs, key: string) => {
+    ctx.loaderAzureOpenaiArgs = {
+        ...ctx.loaderAzureOpenaiArgs,
         [key]: args,
     }
 
-    if (!ctx?.loaderMoonshot) {
-        ctx.loaderMoonshot = new DataLoader<string, string>(async keys => {
-            console.log(`loaderMoonshot-keys-🐹🐹🐹`, keys)
+    if (!ctx?.loaderAzureOpenai) {
+        ctx.loaderAzureOpenai = new DataLoader<string, string>(async keys => {
+            console.log(`loaderAzureOpenai-keys-🐹🐹🐹`, keys)
             try {
-                const moonshotAnswerList = await Promise.all(
+                const azureOpenaiAnswerList = await Promise.all(
                     keys.map(key =>
-                        fetchMoonshot(ctx, {
-                            ...ctx.loaderMoonshotArgs[key],
+                        fetchAzureOpenai(ctx, {
+                            ...ctx.loaderAzureOpenaiArgs[key],
                         })
                     )
                 )
-                return moonshotAnswerList
+                return azureOpenaiAnswerList
             } catch (e) {
-                console.log(`[loaderMoonshot] error: ${e}`)
+                console.log(`[loaderAzureOpenai] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
         })
     }
-    return ctx.loaderMoonshot
+    return ctx.loaderAzureOpenai
 }
 
-export default { fetch: fetchMoonshot, loader: loaderMoonshot }
+export default { fetch: fetchAzureOpenai, loader: loaderAzureOpenai }
