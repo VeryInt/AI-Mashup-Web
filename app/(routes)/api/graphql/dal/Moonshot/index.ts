@@ -1,14 +1,20 @@
 // import 'dotenv/config'
 import DataLoader from 'dataloader'
-import { ICommonDalArgs, Roles } from '../../types'
+import { ICommonDalArgs, IMessage, Roles } from '../../types'
 import OpenAI from 'openai'
 import _ from 'lodash'
 import { generationConfig } from '../../utils/constants'
+import { sleep, getInternetSerchResult } from '../../utils/tools'
+import { searchWebSystemMessage, searchWebTool } from '../../utils/constants'
 
 const DEFAULT_MODEL_NAME = 'moonshot-v1-8k'
 const baseUrl = 'https://api.moonshot.cn/v1'
 
-const convertMessages = (messages: ICommonDalArgs['messages']) => {
+const availableFunctions: Record<string, any> = {
+    get_internet_serch_result: getInternetSerchResult,
+}
+
+const convertMessages = (messages: ICommonDalArgs['messages']): { history: IMessage[] } => {
     let history = _.map(messages, message => {
         return {
             role: message.role == Roles.model ? Roles.assistant : message.role,
@@ -29,8 +35,9 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
         maxOutputTokens,
         completeHandler,
         streamHandler,
+        searchWeb,
     } = params || {}
-    const env = (typeof process != 'undefined' && process?.env) || {}  as NodeJS.ProcessEnv
+    const env = (typeof process != 'undefined' && process?.env) || {} as NodeJS.ProcessEnv
     const API_KEY = apiKey || env?.MOONSHOT_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
@@ -42,6 +49,20 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
         baseURL: baseUrl,
         apiKey: API_KEY,
     })
+
+    let chatParams: Record<string, any> = {
+        model: modelUse,
+        max_tokens,
+        temperature: 0,
+        // @ts-ignore
+        messages: history,
+    }
+
+    let tools: any[] = []
+    if (searchWeb) {
+        history.unshift(searchWebSystemMessage)
+        tools = [searchWebTool]
+    }
 
     console.log(`isStream`, isStream)
 
@@ -83,14 +104,57 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
     } else {
         let msg = ''
         try {
-            const result = await openai.chat.completions.create({
-                model: modelUse,
-                max_tokens,
-                temperature: 0,
-                // @ts-ignore
-                messages: history,
-            })
-            msg = result?.choices?.[0]?.message?.content || ''
+            if (searchWeb) {
+                const firstRoundResult = await openai.chat.completions.create({
+                    model: modelUse,
+                    max_tokens,
+                    temperature: 0,
+                    // @ts-ignore
+                    messages: history,
+                    tool_choice: 'auto',
+                    tools,
+                })
+                const firstRoundMessage = firstRoundResult?.choices?.[0]?.message
+                if (firstRoundMessage?.tool_calls && !_.isEmpty(firstRoundMessage.tool_calls)) {
+                    // @ts-ignore
+                    history.push(firstRoundMessage)
+                    for (const toolCall of firstRoundMessage.tool_calls) {
+                        const { name: functionName, arguments: funArgs } = toolCall.function || {}
+                        const functionToCall = availableFunctions[functionName]
+                        console.log(`🐹🐹🐹 funArgs`, funArgs?.match(/\{(?:[^{}]*)*\}/g)?.[0])
+                        const functionArgs = JSON.parse(funArgs?.match(/\{(?:[^{}]*)*\}/g)?.[0] || '{}')
+                        console.log(`functionArgs`, functionArgs)
+                        const functionResponse = await functionToCall(functionArgs.searchText, functionArgs.count)
+                        history.push({
+                            tool_call_id: toolCall.id,
+                            // @ts-ignore
+                            role: 'tool',
+                            name: functionName,
+                            content: functionResponse,
+                        })
+                    }
+                    const secondResult = await openai.chat.completions.create({
+                        model: modelUse,
+                        max_tokens,
+                        temperature: 0,
+                        // @ts-ignore
+                        messages: history,
+                    })
+
+                    msg = secondResult?.choices?.[0]?.message?.content || ''
+                } else {
+                    msg = firstRoundMessage?.content || ''
+                }
+            } else {
+                const result = await openai.chat.completions.create({
+                    model: modelUse,
+                    max_tokens,
+                    temperature: 0,
+                    // @ts-ignore
+                    messages: history,
+                })
+                msg = result?.choices?.[0]?.message?.content || ''
+            }
         } catch (e) {
             console.log(`moonshot error`, e)
             msg = String(e)

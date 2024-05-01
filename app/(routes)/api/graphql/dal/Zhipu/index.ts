@@ -23,7 +23,7 @@ const convertMessages = (messages: ICommonDalArgs['messages']) => {
 }
 
 const getAuthToken = async ({ apiKey }: { apiKey: string }): Promise<string> => {
-    const [key, secret] = apiKey.split('.')
+    const [key, secret] = apiKey?.split('.')
     const now = Date.now()
     let authToken = ''
     const payload = { api_key: key, exp: now + 10000, timestamp: now }
@@ -49,7 +49,7 @@ const fetchZhipu = async (ctx: TBaseContext, params: Record<string, any>, option
         completeHandler,
         streamHandler,
     } = params || {}
-    const env = (typeof process != 'undefined' && process?.env) || {}  as NodeJS.ProcessEnv
+    const env = (typeof process != 'undefined' && process?.env) || {} as NodeJS.ProcessEnv
     const API_KEY = apiKey || env?.ZHIPU_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens

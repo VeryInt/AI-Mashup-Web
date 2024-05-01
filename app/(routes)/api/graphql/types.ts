@@ -8,6 +8,8 @@ export enum Roles {
 export interface IMessage {
     role: Roles
     content: string
+    tool_call_id?: string | undefined
+    name?: string | undefined
 }
 
 export interface ICommonDalArgs {
@@ -16,6 +18,7 @@ export interface ICommonDalArgs {
     apiKey?: string
     isStream?: boolean
     maxOutputTokens?: number
+    searchWeb?: boolean
     completeHandler?: (params: { content: string; status: boolean }) => void
     streamHandler?: (params: { token: string; status: boolean }) => void
 }

@@ -1,4 +1,6 @@
 import { IMessage, Roles } from '../types'
+import _ from 'lodash'
+import DuckDuckGoSearch from '../lib/duckduckgoSearch'
 
 export const mergeMessages = (messages: IMessage[] | undefined): IMessage[] => {
     const mergedMessages: IMessage[] = []
@@ -63,8 +65,7 @@ export const fetchEventStream = async ({
 
         // 处理缓冲区中的完整事件
         const completeMessages = eventStreamBuffer.split('\n\n') // 每个事件以两个换行符分隔
-
-        completeMessages.slice(0, -1).forEach(message => {
+        _.each(completeMessages.slice(0, -1), message => {
             const data = message.replace(useRegex, '') // 删除每个事件前面的“data: ”
             console.log('Received message:', data)
             console.log(`==========================`)
@@ -77,4 +78,37 @@ export const fetchEventStream = async ({
         // 继续读取下一个数据块
         reader.read().then(processStream)
     })
+}
+
+export const sleep = (sec: number) => new Promise(resolve => setTimeout(resolve, sec * 1000))
+
+export const getInternetSerchResult = async (searchText: string, count?: number): Promise<string> => {
+    const resultList = []
+    const duckDuckGoSearch = new DuckDuckGoSearch()
+    const searchResults = duckDuckGoSearch.text({
+        keywords: searchText,
+        safesearch: 'off',
+    })
+    count = count || 10
+    console.log(`count: ${count}, searchText: ${searchText}`)
+    let index = 0
+    try {
+        for await (const result of searchResults) {
+            console.log(result)
+            const { title, body } = result
+            resultList.push(`${index + 1}. title: ${title}\n description: ${body}`)
+            if (++index >= count) {
+                break
+            }
+        }
+
+        const result = resultList.join('\n\n')
+
+        console.log(`🐹🐹🐹 getInternetSerchResult: ${result}`)
+        return result
+    } catch (e) {
+        console.log(`getInternetSerchResult error`, e)
+    }
+
+    return ''
 }
