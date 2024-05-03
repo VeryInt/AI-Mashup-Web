@@ -138,6 +138,8 @@ const loaderGeminiPro = async (ctx: TBaseContext, args: IGeminiProDalArgs, key: 
                 console.log(`[loaderGeminiPro] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
+        }, {
+            batchScheduleFn: callback => setTimeout(callback, 100),
         })
     }
     return ctx.loaderGeminiPro

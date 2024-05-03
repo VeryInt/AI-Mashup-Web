@@ -187,6 +187,8 @@ const loaderMoonshot = async (ctx: TBaseContext, args: ICommonDalArgs, key: stri
                 console.log(`[loaderMoonshot] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
+        }, {
+            batchScheduleFn: callback => setTimeout(callback, 100),
         })
     }
     return ctx.loaderMoonshot

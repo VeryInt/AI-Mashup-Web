@@ -121,6 +121,8 @@ const loaderOpenai = async (ctx: TBaseContext, args: ICommonDalArgs, key: string
                 console.log(`[loaderOpenai] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
+        }, {
+            batchScheduleFn: callback => setTimeout(callback, 100),
         })
     }
     return ctx.loaderOpenai

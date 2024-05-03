@@ -177,6 +177,8 @@ const loaderErnie = async (ctx: TBaseContext, args: IErnieDalArgs, key: string) 
                 console.log(`[loaderErnie] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
+        }, {
+            batchScheduleFn: callback => setTimeout(callback, 100),
         })
     }
     return ctx.loaderErnie

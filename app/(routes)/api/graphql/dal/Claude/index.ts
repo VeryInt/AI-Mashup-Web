@@ -120,6 +120,8 @@ const loaderClaude = async (ctx: TBaseContext, args: ICommonDalArgs, key: string
                 console.log(`[loaderClaude] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
+        }, {
+            batchScheduleFn: callback => setTimeout(callback, 100),
         })
     }
     return ctx.loaderClaude

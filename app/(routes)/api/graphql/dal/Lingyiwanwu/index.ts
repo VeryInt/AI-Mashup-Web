@@ -123,6 +123,8 @@ const loaderLingyiwanwu = async (ctx: TBaseContext, args: ICommonDalArgs, key: s
                 console.log(`[loaderLingyiwanwu] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
+        }, {
+            batchScheduleFn: callback => setTimeout(callback, 100),
         })
     }
     return ctx.loaderLingyiwanwu

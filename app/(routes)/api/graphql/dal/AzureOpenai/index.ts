@@ -257,6 +257,8 @@ const loaderAzureOpenai = async (ctx: TBaseContext, args: IAzureOpenaiArgs, key:
                 console.log(`[loaderAzureOpenai] error: ${e}`)
             }
             return new Array(keys.length || 1).fill({ status: false })
+        }, {
+            batchScheduleFn: callback => setTimeout(callback, 100),
         })
     }
     return ctx.loaderAzureOpenai
