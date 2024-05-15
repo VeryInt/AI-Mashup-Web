@@ -12,6 +12,11 @@ export interface IMessage {
     name?: string | undefined
 }
 
+export interface IClaudeMessage {
+    role: Roles
+    content: { type: string; text: string }[]
+}
+
 export interface ICommonDalArgs {
     messages?: IMessage[]
     model?: string
@@ -32,4 +37,12 @@ export interface IErnieDalArgs extends ICommonDalArgs {
 
 export interface IAzureOpenaiArgs extends ICommonDalArgs {
     endpoint?: string
+}
+
+export interface IOpenaiArgs extends ICommonDalArgs {
+    baseUrl?: string
+}
+
+export interface IWorkersAIArgs extends ICommonDalArgs {
+    accountID?: string
 }

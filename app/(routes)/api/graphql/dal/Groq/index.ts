@@ -31,7 +31,7 @@ const fetchGroq = async (ctx: TBaseContext, params: Record<string, any>, options
         completeHandler,
         streamHandler,
     } = params || {}
-    const env = (typeof process != 'undefined' && process?.env) || {} as NodeJS.ProcessEnv
+    const env = (typeof process != 'undefined' && process?.env) || ({} as NodeJS.ProcessEnv)
     const API_KEY = apiKey || env?.GROQ_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
@@ -173,24 +173,27 @@ const loaderGroq = async (ctx: TBaseContext, args: ICommonDalArgs, key: string) 
     }
 
     if (!ctx?.loaderGroq) {
-        ctx.loaderGroq = new DataLoader<string, string>(async keys => {
-            console.log(`loaderGroq-keys-🐹🐹🐹`, keys)
-            try {
-                const groqAnswerList = await Promise.all(
-                    keys.map(key =>
-                        fetchGroq(ctx, {
-                            ...ctx.loaderGroqArgs[key],
-                        })
+        ctx.loaderGroq = new DataLoader<string, string>(
+            async keys => {
+                console.log(`loaderGroq-keys-🐹🐹🐹`, keys)
+                try {
+                    const groqAnswerList = await Promise.all(
+                        keys.map(key =>
+                            fetchGroq(ctx, {
+                                ...ctx.loaderGroqArgs[key],
+                            })
+                        )
                     )
-                )
-                return groqAnswerList
-            } catch (e) {
-                console.log(`[loaderGroq] error: ${e}`)
+                    return groqAnswerList
+                } catch (e) {
+                    console.log(`[loaderGroq] error: ${e}`)
+                }
+                return new Array(keys.length || 1).fill({ status: false })
+            },
+            {
+                batchScheduleFn: callback => setTimeout(callback, 100),
             }
-            return new Array(keys.length || 1).fill({ status: false })
-        }, {
-            batchScheduleFn: callback => setTimeout(callback, 100),
-        })
+        )
     }
     return ctx.loaderGroq
 }

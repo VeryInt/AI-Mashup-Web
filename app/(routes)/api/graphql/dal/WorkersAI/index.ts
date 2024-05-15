@@ -1,19 +1,23 @@
 // import 'dotenv/config'
 import DataLoader from 'dataloader'
-import { ICommonDalArgs, Roles } from '../../types'
+import { IWorkersAIArgs, Roles } from '../../types'
 import _ from 'lodash'
 import { generationConfig } from '../../utils/constants'
 import { fetchEventStream } from '../../utils/tools'
-import { SignJWT } from 'jose'
 
+const DEFAULT_MODEL_NAME = '@cf/meta/llama-3-8b-instruct'
+const baseUrl = `https://api.cloudflare.com/client/v4/accounts/`
 const defaultErrorInfo = `currently the mode is not supported`
-const DEFAULT_MODEL_NAME = 'glm-3-turbo'
-const requestUrl = `https://open.bigmodel.cn/api/paas/v4/chat/completions`
 
-const convertMessages = (messages: ICommonDalArgs['messages']) => {
+const convertMessages = (messages: IWorkersAIArgs['messages']) => {
     let history = _.map(messages, message => {
         return {
-            role: message.role == Roles.model ? Roles.assistant : message.role,
+            role:
+                message.role == Roles.model
+                    ? Roles.assistant
+                    : message.role == Roles.system
+                      ? Roles.assistant
+                      : message.role,
             content: message.content,
         }
     })
@@ -22,71 +26,50 @@ const convertMessages = (messages: ICommonDalArgs['messages']) => {
     }
 }
 
-const getAuthToken = async ({ apiKey }: { apiKey: string }): Promise<string> => {
-    const [key, secret] = apiKey?.split('.')
-    const now = Date.now()
-    let authToken = ''
-    const payload = { api_key: key, exp: now + 10000, timestamp: now }
-    try {
-        authToken = await new SignJWT(payload)
-            .setProtectedHeader({ alg: 'HS256', sign_type: 'SIGN' })
-            .setExpirationTime('3s')
-            .sign(new TextEncoder().encode(secret))
-    } catch (e) {
-        console.log(`get authToken error`, e)
-    }
-
-    return authToken
-}
-
-const fetchZhipu = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
+const fetchWorkersAI = async (ctx: TBaseContext, params: Record<string, any>, options: Record<string, any> = {}) => {
     const {
         messages,
         apiKey,
+        accountID,
         model: modelName,
-        isStream,
         maxOutputTokens,
+        isStream,
         completeHandler,
         streamHandler,
     } = params || {}
     const env = (typeof process != 'undefined' && process?.env) || ({} as NodeJS.ProcessEnv)
-    const API_KEY = apiKey || env?.ZHIPU_API_KEY || ''
+    const API_KEY = apiKey || env?.WORKERSAI_API_KEY || ''
+    const ACCOUNT_ID = accountID || env?.WORKERSAI_ACCOUNT_ID || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
-
-    const authToken = await getAuthToken({ apiKey: API_KEY })
-
-    if (_.isEmpty(messages) || !API_KEY || !authToken) {
-        if (isStream) {
-            streamHandler({
-                token: 'there is no messages or api key of Zhipu',
-                status: true,
-            })
-        }
-        return 'there is no messages or api key of Zhipu'
+    if (_.isEmpty(messages) || !API_KEY || !ACCOUNT_ID) {
+        return 'there is no messages or api key of WorkersAI'
     }
     const { history } = convertMessages(messages)
-    console.log(`isStream`, isStream)
 
     const body = {
-        model: modelUse,
+        // model: modelUse,
         messages: history,
         max_tokens,
         stream: false,
     }
 
+    console.log(`body`, body)
     const requestOptions = {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             Accept: '*/*',
-            Authorization: `Bearer ${authToken}`,
+            Authorization: `Bearer ${API_KEY}`,
         },
         body: JSON.stringify(body),
     }
 
-    console.log(`requestOptions`, requestOptions)
+    const requestUrl = `${baseUrl}${ACCOUNT_ID}/ai/run/${modelUse}`
+
+    console.log(`requestUrl`, requestUrl)
     if (isStream) {
+        // @ts-ignore
         requestOptions.headers.Accept = `text/event-stream`
         body.stream = true
         requestOptions.body = JSON.stringify(body)
@@ -108,7 +91,7 @@ const fetchZhipu = async (ctx: TBaseContext, params: Record<string, any>, option
                     try {
                         resultJson = JSON.parse(data)
                     } catch (e) {}
-                    const token = resultJson?.choices?.[0]?.delta?.content || ``
+                    const token = resultJson?.response || ``
                     console.log(`token`, token)
                     if (token) {
                         totalContent += token
@@ -120,7 +103,7 @@ const fetchZhipu = async (ctx: TBaseContext, params: Record<string, any>, option
                 },
             })
         } catch (e) {
-            console.log(`zhipu error`, e)
+            console.log(`fetchWorkersAI stream error`, e)
             streamHandler({
                 token: defaultErrorInfo,
                 status: true,
@@ -135,37 +118,39 @@ const fetchZhipu = async (ctx: TBaseContext, params: Record<string, any>, option
         try {
             const response = await fetch(requestUrl, requestOptions)
             const result = await response.json()
-            console.log(`fetchZhipu`, result)
-            msg = result?.choices?.[0]?.message?.content || ``
+            console.log(`fetchWorkersAI`, result)
+            msg = result?.result?.response || ``
         } catch (e) {
-            console.log(`zhipu error`, e)
+            console.log(`fetchWorkersAI error`, e)
             msg = String(e)
         }
+
+        console.log(`msg`, msg)
         return msg
     }
 }
 
-const loaderZhipu = async (ctx: TBaseContext, args: ICommonDalArgs, key: string) => {
-    ctx.loaderZhipuArgs = {
-        ...ctx.loaderZhipuArgs,
+const loaderWorkersAI = async (ctx: TBaseContext, args: IWorkersAIArgs, key: string) => {
+    ctx.loaderWorkersAIArgs = {
+        ...ctx.loaderWorkersAIArgs,
         [key]: args,
     }
 
-    if (!ctx?.loaderZhipu) {
-        ctx.loaderZhipu = new DataLoader<string, string>(
+    if (!ctx?.loaderWorkersAI) {
+        ctx.loaderWorkersAI = new DataLoader<string, string>(
             async keys => {
-                console.log(`loaderZhipu-keys-🐹🐹🐹`, keys)
+                console.log(`loaderWorkersAI-keys-🐹🐹🐹`, keys)
                 try {
-                    const zhipuAnswerList = await Promise.all(
+                    const workersAIAnswerList = await Promise.all(
                         keys.map(key =>
-                            fetchZhipu(ctx, {
-                                ...ctx.loaderZhipuArgs[key],
+                            fetchWorkersAI(ctx, {
+                                ...ctx.loaderWorkersAIArgs[key],
                             })
                         )
                     )
-                    return zhipuAnswerList
+                    return workersAIAnswerList
                 } catch (e) {
-                    console.log(`[loaderZhipu] error: ${e}`)
+                    console.log(`[loaderWorkersAI] error: ${e}`)
                 }
                 return new Array(keys.length || 1).fill({ status: false })
             },
@@ -174,7 +159,7 @@ const loaderZhipu = async (ctx: TBaseContext, args: ICommonDalArgs, key: string)
             }
         )
     }
-    return ctx.loaderZhipu
+    return ctx.loaderWorkersAI
 }
 
-export default { fetch: fetchZhipu, loader: loaderZhipu }
+export default { fetch: fetchWorkersAI, loader: loaderWorkersAI }

@@ -37,7 +37,7 @@ const fetchMoonshot = async (ctx: TBaseContext, params: Record<string, any>, opt
         streamHandler,
         searchWeb,
     } = params || {}
-    const env = (typeof process != 'undefined' && process?.env) || {} as NodeJS.ProcessEnv
+    const env = (typeof process != 'undefined' && process?.env) || ({} as NodeJS.ProcessEnv)
     const API_KEY = apiKey || env?.MOONSHOT_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
@@ -172,24 +172,27 @@ const loaderMoonshot = async (ctx: TBaseContext, args: ICommonDalArgs, key: stri
     }
 
     if (!ctx?.loaderMoonshot) {
-        ctx.loaderMoonshot = new DataLoader<string, string>(async keys => {
-            console.log(`loaderMoonshot-keys-🐹🐹🐹`, keys)
-            try {
-                const moonshotAnswerList = await Promise.all(
-                    keys.map(key =>
-                        fetchMoonshot(ctx, {
-                            ...ctx.loaderMoonshotArgs[key],
-                        })
+        ctx.loaderMoonshot = new DataLoader<string, string>(
+            async keys => {
+                console.log(`loaderMoonshot-keys-🐹🐹🐹`, keys)
+                try {
+                    const moonshotAnswerList = await Promise.all(
+                        keys.map(key =>
+                            fetchMoonshot(ctx, {
+                                ...ctx.loaderMoonshotArgs[key],
+                            })
+                        )
                     )
-                )
-                return moonshotAnswerList
-            } catch (e) {
-                console.log(`[loaderMoonshot] error: ${e}`)
+                    return moonshotAnswerList
+                } catch (e) {
+                    console.log(`[loaderMoonshot] error: ${e}`)
+                }
+                return new Array(keys.length || 1).fill({ status: false })
+            },
+            {
+                batchScheduleFn: callback => setTimeout(callback, 100),
             }
-            return new Array(keys.length || 1).fill({ status: false })
-        }, {
-            batchScheduleFn: callback => setTimeout(callback, 100),
-        })
+        )
     }
     return ctx.loaderMoonshot
 }

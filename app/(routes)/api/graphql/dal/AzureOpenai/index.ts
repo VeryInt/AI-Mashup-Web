@@ -39,7 +39,7 @@ const fetchAzureOpenai = async (ctx: TBaseContext, params: Record<string, any>, 
         streamHandler,
         searchWeb,
     } = params || {}
-    const env = (typeof process != 'undefined' && process?.env) || {}  as NodeJS.ProcessEnv
+    const env = (typeof process != 'undefined' && process?.env) || ({} as NodeJS.ProcessEnv)
     const ENDPOINT = endpoint || env?.AZURE_OPENAI_ENDPOINT || ''
     const API_KEY = apiKey || env?.AZURE_OPENAI_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
@@ -242,24 +242,27 @@ const loaderAzureOpenai = async (ctx: TBaseContext, args: IAzureOpenaiArgs, key:
     }
 
     if (!ctx?.loaderAzureOpenai) {
-        ctx.loaderAzureOpenai = new DataLoader<string, string>(async keys => {
-            console.log(`loaderAzureOpenai-keys-🐹🐹🐹`, keys)
-            try {
-                const azureOpenaiAnswerList = await Promise.all(
-                    keys.map(key =>
-                        fetchAzureOpenai(ctx, {
-                            ...ctx.loaderAzureOpenaiArgs[key],
-                        })
+        ctx.loaderAzureOpenai = new DataLoader<string, string>(
+            async keys => {
+                console.log(`loaderAzureOpenai-keys-🐹🐹🐹`, keys)
+                try {
+                    const azureOpenaiAnswerList = await Promise.all(
+                        keys.map(key =>
+                            fetchAzureOpenai(ctx, {
+                                ...ctx.loaderAzureOpenaiArgs[key],
+                            })
+                        )
                     )
-                )
-                return azureOpenaiAnswerList
-            } catch (e) {
-                console.log(`[loaderAzureOpenai] error: ${e}`)
+                    return azureOpenaiAnswerList
+                } catch (e) {
+                    console.log(`[loaderAzureOpenai] error: ${e}`)
+                }
+                return new Array(keys.length || 1).fill({ status: false })
+            },
+            {
+                batchScheduleFn: callback => setTimeout(callback, 100),
             }
-            return new Array(keys.length || 1).fill({ status: false })
-        }, {
-            batchScheduleFn: callback => setTimeout(callback, 100),
-        })
+        )
     }
     return ctx.loaderAzureOpenai
 }

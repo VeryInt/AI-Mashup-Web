@@ -25,7 +25,7 @@ const convertMessages = (messages: IErnieDalArgs['messages']) => {
 
 const getAccessToken = async ({ apiKey, secretKey }: { apiKey?: string; secretKey?: string }) => {
     let accessToken = ''
-    const env = (typeof process != 'undefined' && process?.env) || {}  as NodeJS.ProcessEnv
+    const env = (typeof process != 'undefined' && process?.env) || ({} as NodeJS.ProcessEnv)
     secretKey = secretKey || env?.ERNIE_SECRET_KEY || ''
     apiKey = apiKey || env?.ERNIE_API_KEY || ''
     if (!secretKey || !apiKey) return ''
@@ -63,7 +63,7 @@ const fetchErnie = async (ctx: TBaseContext, params: Record<string, any>, option
         completeHandler,
         streamHandler,
     } = params || {}
-    const env = (typeof process != 'undefined' && process?.env) || {}  as NodeJS.ProcessEnv
+    const env = (typeof process != 'undefined' && process?.env) || ({} as NodeJS.ProcessEnv)
     const API_KEY = apiKey || env?.ERNIE_API_KEY || ''
     const SECRET_KEY = secretKey || env?.ERNIE_SECRET_KEY || ''
     const modelUse = (modelName || DEFAULT_MODEL_NAME).toLowerCase()
@@ -162,24 +162,27 @@ const loaderErnie = async (ctx: TBaseContext, args: IErnieDalArgs, key: string) 
     }
 
     if (!ctx?.loaderErnie) {
-        ctx.loaderErnie = new DataLoader<string, string>(async keys => {
-            console.log(`loaderErnie-keys-🐹🐹🐹`, keys)
-            try {
-                const ernieAnswerList = await Promise.all(
-                    keys.map(key =>
-                        fetchErnie(ctx, {
-                            ...ctx.loaderErnieArgs[key],
-                        })
+        ctx.loaderErnie = new DataLoader<string, string>(
+            async keys => {
+                console.log(`loaderErnie-keys-🐹🐹🐹`, keys)
+                try {
+                    const ernieAnswerList = await Promise.all(
+                        keys.map(key =>
+                            fetchErnie(ctx, {
+                                ...ctx.loaderErnieArgs[key],
+                            })
+                        )
                     )
-                )
-                return ernieAnswerList
-            } catch (e) {
-                console.log(`[loaderErnie] error: ${e}`)
+                    return ernieAnswerList
+                } catch (e) {
+                    console.log(`[loaderErnie] error: ${e}`)
+                }
+                return new Array(keys.length || 1).fill({ status: false })
+            },
+            {
+                batchScheduleFn: callback => setTimeout(callback, 100),
             }
-            return new Array(keys.length || 1).fill({ status: false })
-        }, {
-            batchScheduleFn: callback => setTimeout(callback, 100),
-        })
+        )
     }
     return ctx.loaderErnie
 }

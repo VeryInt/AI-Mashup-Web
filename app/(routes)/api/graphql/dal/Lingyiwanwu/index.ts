@@ -30,7 +30,7 @@ const fetchLingyiwanwu = async (ctx: TBaseContext, params: Record<string, any>, 
         completeHandler,
         streamHandler,
     } = params || {}
-    const env = (typeof process != 'undefined' && process?.env) || {}  as NodeJS.ProcessEnv
+    const env = (typeof process != 'undefined' && process?.env) || ({} as NodeJS.ProcessEnv)
     const API_KEY = apiKey || env?.LINGYIWANWU_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
@@ -108,24 +108,27 @@ const loaderLingyiwanwu = async (ctx: TBaseContext, args: ICommonDalArgs, key: s
     }
 
     if (!ctx?.loaderLingyiwanwu) {
-        ctx.loaderLingyiwanwu = new DataLoader<string, string>(async keys => {
-            console.log(`loaderLingyiwanwu-keys-🐹🐹🐹`, keys)
-            try {
-                const lingyiwanwuAnswerList = await Promise.all(
-                    keys.map(key =>
-                        fetchLingyiwanwu(ctx, {
-                            ...ctx.loaderLingyiwanwuArgs[key],
-                        })
+        ctx.loaderLingyiwanwu = new DataLoader<string, string>(
+            async keys => {
+                console.log(`loaderLingyiwanwu-keys-🐹🐹🐹`, keys)
+                try {
+                    const lingyiwanwuAnswerList = await Promise.all(
+                        keys.map(key =>
+                            fetchLingyiwanwu(ctx, {
+                                ...ctx.loaderLingyiwanwuArgs[key],
+                            })
+                        )
                     )
-                )
-                return lingyiwanwuAnswerList
-            } catch (e) {
-                console.log(`[loaderLingyiwanwu] error: ${e}`)
+                    return lingyiwanwuAnswerList
+                } catch (e) {
+                    console.log(`[loaderLingyiwanwu] error: ${e}`)
+                }
+                return new Array(keys.length || 1).fill({ status: false })
+            },
+            {
+                batchScheduleFn: callback => setTimeout(callback, 100),
             }
-            return new Array(keys.length || 1).fill({ status: false })
-        }, {
-            batchScheduleFn: callback => setTimeout(callback, 100),
-        })
+        )
     }
     return ctx.loaderLingyiwanwu
 }

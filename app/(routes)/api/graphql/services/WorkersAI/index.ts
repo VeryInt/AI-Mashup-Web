@@ -1,31 +1,31 @@
 // import 'dotenv/config'
-import OpenaiDal from '../../dal/Openai'
+import WorkersAIDal from '../../dal/WorkersAI'
 import _ from 'lodash'
 import { Repeater } from 'graphql-yoga'
 
 const typeDefinitions = `
     scalar JSON
     type Chat {
-        Openai(params: OpenaiArgs): ChatResult
-        OpenaiStream(params: OpenaiArgs): [String]
+        WorkersAI(params: WorkersAIArgs): ChatResult
+        WorkersAIStream(params: WorkersAIArgs): [String]
     }
 
-    input OpenaiArgs {
+    input WorkersAIArgs {
         messages: Message
+        "Account ID"
+        accountID: String
         "API_KEY"
         apiKey: String
         "Model Name"
         model: String
         "Max Tokens"
         maxTokens: Int
-        "BaseUrl"
-        baseUrl: String
     }
 `
-export const Openai = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
-    const { messages: baseMessages, maxTokens: baseMaxTokens, searchWeb } = parent || {}
-    const openaiArgs = args?.params || {}
-    const { messages: appendMessages, apiKey, model, maxTokens, baseUrl } = openaiArgs || {}
+export const WorkersAI = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+    const { messages: baseMessages, maxTokens: baseMaxTokens } = parent || {}
+    const workersAIArgs = args?.params || {}
+    const { messages: appendMessages, apiKey, model, maxTokens, accountID } = workersAIArgs || {}
     const maxTokensUse = maxTokens || baseMaxTokens
     const messages = _.concat([], baseMessages || [], appendMessages || []) || []
     const key = messages.at(-1)?.content
@@ -34,26 +34,22 @@ export const Openai = async (parent: TParent, args: Record<string, any>, context
         return { text: '' }
     }
     const text: any = await (
-        await OpenaiDal.loader(
-            context,
-            { messages, apiKey, model, maxOutputTokens: maxTokensUse, searchWeb, baseUrl },
-            key
-        )
+        await WorkersAIDal.loader(context, { messages, apiKey, model, maxOutputTokens: maxTokensUse, accountID }, key)
     ).load(key)
     return { text }
 }
 
-export const OpenaiStream = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
+export const WorkersAIStream = async (parent: TParent, args: Record<string, any>, context: TBaseContext) => {
     const xvalue = new Repeater<String>(async (push, stop) => {
-        const { messages: baseMessages, maxTokens: baseMaxTokens, searchWeb } = parent || {}
-        const openaiArgs = args?.params || {}
-        const { messages: appendMessages, apiKey, model, maxTokens, baseUrl } = openaiArgs || {}
+        const { messages: baseMessages, maxTokens: baseMaxTokens } = parent || {}
+        const workersAIArgs = args?.params || {}
+        const { messages: appendMessages, apiKey, model, maxTokens, accountID } = workersAIArgs || {}
         const maxTokensUse = maxTokens || baseMaxTokens
         const messages = _.concat([], baseMessages || [], appendMessages || []) || []
         const key = `${messages.at(-1)?.content || ''}_stream`
 
         await (
-            await OpenaiDal.loader(
+            await WorkersAIDal.loader(
                 context,
                 {
                     messages,
@@ -61,8 +57,7 @@ export const OpenaiStream = async (parent: TParent, args: Record<string, any>, c
                     model,
                     maxOutputTokens: maxTokensUse,
                     isStream: true,
-                    searchWeb,
-                    baseUrl,
+                    accountID,
                     completeHandler: ({ content, status }) => {
                         stop()
                     },
@@ -81,8 +76,8 @@ export const OpenaiStream = async (parent: TParent, args: Record<string, any>, c
 
 const resolvers = {
     Chat: {
-        Openai,
-        OpenaiStream,
+        WorkersAI,
+        WorkersAIStream,
     },
 }
 

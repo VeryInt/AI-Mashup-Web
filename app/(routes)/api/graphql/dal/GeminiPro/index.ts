@@ -61,7 +61,7 @@ const fetchGeminiPro = async (ctx: TBaseContext, params: Record<string, any>, op
         streamHandler,
         apiVersion,
     } = params || {}
-    const env = (typeof process != 'undefined' && process?.env) || {}  as NodeJS.ProcessEnv
+    const env = (typeof process != 'undefined' && process?.env) || ({} as NodeJS.ProcessEnv)
     const API_KEY = apiKey || env?.GEMINI_PRO_API_KEY || ''
     const modelUse = modelName || DEFAULT_MODEL_NAME
     const max_tokens = maxOutputTokens || generationConfig.maxOutputTokens
@@ -123,24 +123,27 @@ const loaderGeminiPro = async (ctx: TBaseContext, args: IGeminiProDalArgs, key: 
     }
 
     if (!ctx?.loaderGeminiPro) {
-        ctx.loaderGeminiPro = new DataLoader<string, string>(async keys => {
-            console.log(`loaderGeminiPro-keys-🐹🐹🐹`, keys)
-            try {
-                const geminiProAnswerList = await Promise.all(
-                    keys.map(key =>
-                        fetchGeminiPro(ctx, {
-                            ...ctx.loaderGeminiProArgs[key],
-                        })
+        ctx.loaderGeminiPro = new DataLoader<string, string>(
+            async keys => {
+                console.log(`loaderGeminiPro-keys-🐹🐹🐹`, keys)
+                try {
+                    const geminiProAnswerList = await Promise.all(
+                        keys.map(key =>
+                            fetchGeminiPro(ctx, {
+                                ...ctx.loaderGeminiProArgs[key],
+                            })
+                        )
                     )
-                )
-                return geminiProAnswerList
-            } catch (e) {
-                console.log(`[loaderGeminiPro] error: ${e}`)
+                    return geminiProAnswerList
+                } catch (e) {
+                    console.log(`[loaderGeminiPro] error: ${e}`)
+                }
+                return new Array(keys.length || 1).fill({ status: false })
+            },
+            {
+                batchScheduleFn: callback => setTimeout(callback, 100),
             }
-            return new Array(keys.length || 1).fill({ status: false })
-        }, {
-            batchScheduleFn: callback => setTimeout(callback, 100),
-        })
+        )
     }
     return ctx.loaderGeminiPro
 }
