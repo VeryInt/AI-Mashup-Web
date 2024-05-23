@@ -6,14 +6,10 @@ import {
     Drawer,
     DrawerClose,
     DrawerContent,
-    DrawerDescription,
-    DrawerFooter,
-    DrawerHeader,
-    DrawerTitle,
     DrawerTrigger,
   } from "@/components/ui/drawer"
-  import Sidebar from '@/app/modules/Sidebar'
-
+import Sidebar from '@/app/modules/Sidebar'
+import Chatinput from '@/app/modules/ChatInput'
   
 const Main = () => {
     const { isloading, updateIsLoading } = useMainStore(state => state)
@@ -48,8 +44,8 @@ const Main = () => {
                     </div>
                 </div>
             </div>
-            <div className='w-full p-0 border-transparent dark:border-transparent juice:w-full h-24'>
-
+            <div className='w-full p-0  border-transparent dark:border-transparent juice:w-full  min-h-[5.5rem] text-base'>
+                <Chatinput />
             </div>
         </div>
     )
