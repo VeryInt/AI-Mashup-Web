@@ -22,8 +22,8 @@ export const createMainStore = (initState: MainState = defaultInitState) => {
     return createStore<MainStore>()(set => {
         return {
             ...initState,
-            
-            updateIsLoading: (loading: boolean) =>{
+
+            updateIsLoading: (loading: boolean) => {
                 return set(state => {
                     return {
                         isloading: loading,

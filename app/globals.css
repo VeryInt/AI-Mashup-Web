@@ -74,3 +74,36 @@
       @apply bg-background text-foreground;
     }
   }
+
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  overscroll-behavior: none;
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100); /* 使用 --vh 变量 */
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+  overscroll-behavior-y: contain;
+}
+
+body *:focus,
+body *:hover {
+  outline: none;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+.main{
+  height: 100vh; /* 此处使用了 vh 单位 */
+  height: calc(var(--vh, 1vh) * 100); /* 使用 --vh 变量 */
+}

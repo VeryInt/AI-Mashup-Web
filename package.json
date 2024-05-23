@@ -12,7 +12,7 @@
     "eslint:commit": "git diff --cached --name-only | grep -E 'src.*\\.[jt]sx?$' | xargs ./node_modules/.bin/eslint --quiet",
     "eslint:quiet": "./node_modules/.bin/eslint \"src/**/*.{js,jsx,ts,tsx}\" --ignore-pattern \"src/lib/\" --ignore-pattern \"src/shared/\" --quiet",
     "prettier:single": "./node_modules/.bin/prettier --single-quote --no-semi --trailing-comma es5 --print-width 120 --tab-width 4 --arrow-parens avoid --write",
-    "prettier": "./node_modules/.bin/prettier --single-quote --no-semi --trailing-comma es5 --print-width 120 --tab-width 4 --arrow-parens avoid --write \"src/**/*.{js,jsx,ts,tsx}\"",
+    "prettier": "./node_modules/.bin/prettier --single-quote --no-semi --trailing-comma es5 --print-width 120 --tab-width 4 --arrow-parens avoid --write \"app/**/*.{js,jsx,ts,tsx}\"",
     "prettier:check": "npm run prettier -- --list-different",
     "lint-staged": "lint-staged"
   },
@@ -20,7 +20,7 @@
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx}": [
       "npm run eslint:commit",
-      "prettier --single-quote --no-semi --trailing-comma es5 --print-width 120 --tab-width 4 --arrow-parens avoid --write \"!src/lib/**\" \"!src/shared/**\"",
+      "prettier --single-quote --no-semi --trailing-comma es5 --print-width 120 --tab-width 4 --arrow-parens avoid --write \"!lib/**\" \"!shared/**\"",
       "git add"
     ]
   },
@@ -46,6 +46,7 @@
     "@google/generative-ai": "^0.3.1",
     "@graphql-tools/schema": "^10.0.3",
     "@graphql-yoga/plugin-defer-stream": "^3.2.0",
+    "@radix-ui/react-dialog": "^1.0.5",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "dataloader": "^2.2.2",
@@ -61,8 +62,10 @@
     "qs": "^6.12.0",
     "react": "^18",
     "react-dom": "^18",
+    "react-resizable-panels": "^2.0.19",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
+    "vaul": "^0.9.1",
     "zustand": "^4.5.2"
   },
   "devDependencies": {

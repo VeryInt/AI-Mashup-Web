@@ -2,6 +2,19 @@
 import { useEffect } from 'react'
 import { useMainStore } from './providers'
 import { MainStoreProvider } from './providers'
+import {
+    Drawer,
+    DrawerClose,
+    DrawerContent,
+    DrawerDescription,
+    DrawerFooter,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerTrigger,
+  } from "@/components/ui/drawer"
+  import Sidebar from '@/app/modules/Sidebar'
+
+  
 const Main = () => {
     const { isloading, updateIsLoading } = useMainStore(state => state)
     useEffect(() => {
@@ -19,7 +32,25 @@ const Main = () => {
     }, [])
 
     return (
-        <div className="flex flex-col w-full items-center">
+        <div className="flex flex-col w-full h-full focus-visible:outline-0">
+            <div className='flex-1 overflow-hidden'>
+                <div className='absolute flex flex-row  h-14 w-full items-center justify-between'>
+                    <div className='topleft ml-4'>
+                    <Drawer direction="left"> 
+                    <DrawerTrigger>Open</DrawerTrigger>
+                    <DrawerContent direction="left" className='bg-transparent rounded-tl-none rounded-r-xl h-full w-[280px] fixed bottom-0 left-0 !right-auto z-[9999] overflow-hidden'>
+                        <Sidebar />
+                    </DrawerContent>
+                    </Drawer>
+                    </div>
+                    <div className='topright'>
+
+                    </div>
+                </div>
+            </div>
+            <div className='w-full p-0 border-transparent dark:border-transparent juice:w-full h-24'>
+
+            </div>
         </div>
     )
 }
