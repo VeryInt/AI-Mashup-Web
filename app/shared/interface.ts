@@ -5,9 +5,13 @@ interface SystemMessage {
     name?: string
 }
 
-interface UserMessage {
+export type TextMessage = { type: 'text', text: string };
+export type ImageUrlMessage = { type: 'image_url', image_url: { url: string; detail?: string } };
+
+
+export interface UserMessage {
     role: Roles.user,
-    content: string | { type: 'text'; text: string }[] | { type: 'image_url'; image_url: { url: string, detail?: string } }[],
+    content: string | (TextMessage | ImageUrlMessage)[],
     name?: string
 }
 
@@ -25,7 +29,8 @@ interface AssistantMessage {
     }[]
 }
 
-export type IChatItem = SystemMessage | UserMessage | AssistantMessage
+
+export type IChatMessage = SystemMessage | UserMessage | AssistantMessage
 
 // type Roles
 export enum Roles {
@@ -35,4 +40,4 @@ export enum Roles {
 }
 
 // type history
-export type IHistory = IChatItem[]
+export type IHistory = IChatMessage[]

@@ -68,8 +68,9 @@ const Chatinput = ({maxRows = 5}: {maxRows?: number}) => {
     }
 
     return (
-        <div className='__chatinput__ relative h-full flex flex-col'>
-            <div className="overflow-y-scroll overflow-x-hidden rounded-3xl bg-gray-100 flex flex-row gap-1 flex-grow w-[50rem] mx-auto text-gray-600 max-h-52">
+        <div className='__chatinput__ relative h-full '>
+            <div className='max-w-[50rem] w-full flex flex-col mx-auto'>
+            <div className="overflow-y-scroll overflow-x-hidden rounded-3xl bg-gray-100 flex flex-row gap-1 flex-grow  mx-4 text-gray-600 max-h-52">
             <div className="flex flex-grow flex-row  border-0 pl-5 gap-1 ">
                 <div className="flex my-1 flex-row flex-grow ml-2 mb-3 items-center">
                     <textarea
@@ -100,6 +101,7 @@ const Chatinput = ({maxRows = 5}: {maxRows?: number}) => {
                         </div>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
         <div className='h-9'></div>
