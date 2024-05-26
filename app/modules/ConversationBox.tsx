@@ -1,8 +1,9 @@
 'use client'
 import React, { useEffect, useState } from 'react'
-import { IHistory, Roles, IChatMessage, UserMessage } from '../shared/interface'
+import { IHistory, Roles, IChatMessage, UserMessage, AssistantMessage } from '../shared/interface'
 import _ from 'lodash'
 import ChatUserMessage from './ChatUserMessage'
+import ChatAssistantMessage from './ChatAssistantMessage'
 
 const historyMock: IHistory = [
     {
@@ -18,8 +19,9 @@ const historyMock: IHistory = [
         content: `那你能告诉我如何创造出一副类似这样的画吗？或者有什么简便的方法来实现吗？我没有画画的基础，但是我是一个前段开发工程师`
     },
     {
+        provider: `openai`,
         role: Roles.assistant,
-        content: `Hello, how can I help you today?`
+        content: '首先，确保你已经安装了所需的依赖项。你需要 ```axios``` 来处理 HTTP 请求，以及 ```@types/react``` 和 ```@types/node``` 来提供 TypeScript 类型支持。\n在你的主应用文件中导入并使用这个组件：\n```typescript\nimport React, { useState, useEffect } from \"react\";\nimport axios from \"axios\";\n\nconst App = () => {\n  const [response, setResponse] = useState(\"\");\n\n  useEffect(() => {\n    // Your API key\n    const apiKey = \"YOUR_GPT_API_KEY\";\n\n    // Your prompt\n    const prompt = \"What is the best way to learn React?\";\n\n    // The request body\n    const requestBody = {\n      prompt: {\n        text: prompt,\n      },\n    };\n\n    // The API endpoint\n    const endpoint = \"https://generativelanguage.googleapis.com/v1beta2/models/text-bison-001:generateText?key={{API_KEY}}\";\n\n    axios\n      .post(endpoint, requestBody, {\n        headers: {\n          \"Content-Type\": \"application/json\",\n          Authorization: `Bearer ${apiKey}`,\n        },\n      })\n      .then((res) => {\n        setResponse(res.data.candidates[0].output);\n      })\n      .catch((err) => {\n        console.error(err);\n      });\n  }, []);\n\n  return (\n    <div>\n      <p>{response}</p>\n    </div>\n  );\n};\n\nexport default App;\n```'
     },
     {
         role: Roles.user,
@@ -79,14 +81,14 @@ const ConversationBox = ()=>{
     }, [])
 
     return (
-        <div className='w-full mt-16'>
-            <div className='flex flex-col gap-2'>
+        <div className='w-full mt-16 text-sm pb-9'>
+            <div className='flex flex-col gap-2 overflow-hidden overflow-y-scroll'>
             {_.map(history, (chatMessage: IChatMessage, index) => {
                 const { role} = chatMessage || {}
                 if(role == Roles.user){
                     return <ChatUserMessage key={index} chatMessage={chatMessage as UserMessage} />
                 }
-                return <div key={index}>{chatMessage.role}: {chatMessage.content as string}</div>
+                return <ChatAssistantMessage key={index} chatMessage={chatMessage as AssistantMessage} />
             })}
             </div>
         </div>

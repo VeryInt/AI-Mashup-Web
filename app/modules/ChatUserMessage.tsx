@@ -35,7 +35,7 @@ const ObjectContent = ({content}: {content: (TextMessage | ImageUrlMessage)[]}) 
     return (
         <div className='objectcontent gap-1 flex flex-col'>
             {!_.isEmpty(imageContentList) ? (
-                <div className='flex flex-wrap gap-1'>
+                <div className='flex flex-wrap gap-1 justify-end'>
                     {
                         _.map(imageContentList, (message: ImageUrlMessage, index: number) => {
                             const { url, detail } = message.image_url

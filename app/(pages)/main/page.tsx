@@ -30,7 +30,7 @@ const Main = () => {
 
     return (
         <div className="flex flex-col w-full h-full focus-visible:outline-0">
-            <div className='flex-1 overflow-hidden'>
+            <div className='flex-1 overflow-hidden overflow-y-scroll'>
                 <div className='absolute flex flex-row  h-14 w-full items-center justify-between'>
                     <div className='topleft ml-4'>
                     <Drawer direction="left"> 

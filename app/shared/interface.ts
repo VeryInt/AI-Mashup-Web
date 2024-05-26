@@ -15,7 +15,8 @@ export interface UserMessage {
     name?: string
 }
 
-interface AssistantMessage {
+export interface AssistantMessage {
+    provider?: string,
     role: Roles.assistant,
     content?: string | null,
     name?: string
