@@ -33,7 +33,6 @@ const  ChatAssistantMessage = ({chatMessage}: IChatAssistantMessageProps) =>{
                         <div className='flex w-full flex-col gap-1 juice:empty:hidden juice:first:pt-[3px] text-gray-600'>
                             <div className='markdown prose w-full break-words dark:prose-invert light'>
                                 <ReactMarkdown
-                                    children={content}
                                     components={{
                                         code(props) {
                                             const {children, className, node, ...rest} = props
@@ -72,7 +71,9 @@ const  ChatAssistantMessage = ({chatMessage}: IChatAssistantMessageProps) =>{
                                             )
                                         }
                                     }}
-                                />
+                                >
+                                    {content}
+                                </ReactMarkdown>
                             </div>
                         </div>
                     </div>
